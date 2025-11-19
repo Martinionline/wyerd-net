@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Border Styles</title>
+    <style>
+        .test-divider {
+            width: 200px;
+            height: 4px;
+            background-color: #3b82f6;
+            margin: 20px auto;
+        }
+        
+        .border-test-1 {
+            outline: 3px solid #ff0000;
+            outline-offset: 2px;
+        }
+        
+        .border-test-2 {
+            border: 3px solid #ff0000;
+        }
+        
+        .svg-test path {
+            stroke: #ff0000;
+            stroke-width: 3;
+            fill: #3b82f6;
+        }
+    </style>
+</head>
+<body>
+    <h1>Border Test</h1>
+    
+    <h2>CSS Outline Test</h2>
+    <div class="test-divider border-test-1"></div>
+    
+    <h2>CSS Border Test</h2>
+    <div class="test-divider border-test-2"></div>
+    
+    <h2>SVG Stroke Test</h2>
+    <svg class="svg-test" width="400" height="60" viewBox="0 0 400 60">
+        <path d="M0,30 Q100,10 200,30 T400,30 L400,50 L0,50 Z" />
+    </svg>
+    
+</body>
+</html>

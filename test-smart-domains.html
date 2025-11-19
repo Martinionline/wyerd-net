@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Smart Domain URL Testing</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; max-width: 1200px; }
+        .test-section { border: 1px solid #ddd; margin: 20px 0; padding: 20px; border-radius: 8px; }
+        .result { padding: 10px; margin: 10px 0; border-radius: 5px; }
+        .success { background: #d4edda; border: 1px solid #c3e6cb; }
+        .error { background: #f8d7da; border: 1px solid #f5c6cb; }
+        .info { background: #d1ecf1; border: 1px solid #bee5eb; }
+        button { padding: 10px 20px; margin: 5px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        button:hover { background: #0056b3; }
+        .url-display { font-family: monospace; background: #f8f9fa; padding: 5px; border-radius: 3px; }
+    </style>
+</head>
+<body>
+    <h1>🧪 Smart Domain URL Testing</h1>
+    <p>This tests the new smart domain logic: First launch = GitHub Pages, Page reload = Test actual domain</p>
+    
+    <div class="test-section">
+        <h2>Test 1: First Launch Behavior</h2>
+        <p>All domains should use GitHub Pages on first launch</p>
+        <button onclick="testFirstLaunch('wyerd.net')">Test wyerd.net First Launch</button>
+        <button onclick="testFirstLaunch('wyerdcard.net')">Test wyerdcard.net First Launch</button>
+        <div id="first-launch-results"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Test 2: Page Reload/Reset Behavior</h2>
+        <p>wyerd.net should stay on GitHub Pages, wyerdcard.net should switch to custom domain</p>
+        <button onclick="testPageReload('wyerd.net')">Test wyerd.net Reload</button>
+        <button onclick="testPageReload('wyerdcard.net')">Test wyerdcard.net Reload</button>
+        <div id="page-reload-results"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Test 3: Backend Domain Status</h2>
+        <p>Check what the backend API returns for each domain</p>
+        <button onclick="testBackendStatus('wyerd.net')">Check wyerd.net Backend</button>
+        <button onclick="testBackendStatus('wyerdcard.net')">Check wyerdcard.net Backend</button>
+        <div id="backend-results"></div>
+    </div>
+    
+    <script>
+        // Simulate the frontend domain status checking
+        async function checkDomainStatus(domain) {
+            try {
+                const response = await fetch('/api/opensrs/check-domain-status', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ domain, timestamp: Date.now() })
+                });
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    const backendUrl = result.url || result.recommended_url || result.workingUrl;
+                    
+                    return {
+                        status: result.status,
+                        url: backendUrl,
+                        message: result.message,
+                        accessible: result.accessible
+                    };
+                }
+            } catch (error) {
+                console.error('Error checking domain status:', error);
+            }
+            return null;
+        }
+        
+        // Simulate GitHub deployment URL generation
+        async function ensureGitHubDeployment(domain) {
+            const repoName = domain.replace(/\./g, '-') + '-website';
+            return `https://Martinionline.github.io/${repoName}`;
+        }
+        
+        // Simulate the new smart determineWorkingUrl function
+        async function determineWorkingUrl(customUrl, domain, isFirstLaunch = false) {
+            console.log(`🔍 determineWorkingUrl(customUrl: ${customUrl}, domain: ${domain}, isFirstLaunch: ${isFirstLaunch})`);
+            
+            if (!domain) {
+                console.log('🌐 No domain provided, using custom URL');
+                return customUrl || '';
+            }
+
+            // FIRST LAUNCH: Always use GitHub Pages initially for all domains
+            if (isFirstLaunch) {
+                const githubUrl = await ensureGitHubDeployment(domain);
+                console.log(`🚀 FIRST LAUNCH: Using GitHub Pages for ${domain}: ${githubUrl}`);
+                return githubUrl;
+            }
+
+            // SPECIAL CASE: wyerd.net is known to not be fully configured, force GitHub Pages
+            if (domain === 'wyerd.net') {
+                const githubUrl = 'https://Martinionline.github.io/wyerd-net-website';
+                console.log(`🔧 HARD OVERRIDE: wyerd.net MUST use GitHub Pages: ${githubUrl}`);
+                return githubUrl;
+            }
+
+            try {
+                const domainStatus = await checkDomainStatus(domain);
+                console.log(`🎯 Domain status for ${domain}:`, domainStatus);
+                
+                if (domainStatus && domainStatus.url) {
+                    console.log(`✅ USING backend URL for ${domain}: ${domainStatus.url}`);
+                    return domainStatus.url;
+                } else {
+                    console.log(`🚀 No URL from backend for ${domain}, using fallback`);
+                    const fallbackUrl = await ensureGitHubDeployment(domain) || customUrl || '';
+                    return fallbackUrl;
+                }
+            } catch (error) {
+                console.error(`❌ Error checking domain status for ${domain}:`, error);
+                return customUrl || '';
+            }
+        }
+        
+        async function testFirstLaunch(domain) {
+            const results = document.getElementById('first-launch-results');
+            const resultDiv = document.createElement('div');
+            resultDiv.innerHTML = `<p>Testing first launch for ${domain}...</p>`;
+            results.appendChild(resultDiv);
+            
+            try {
+                const url = await determineWorkingUrl(null, domain, true);
+                const isGitHub = url.includes('github.io');
+                
+                resultDiv.className = `result ${isGitHub ? 'success' : 'error'}`;
+                resultDiv.innerHTML = `
+                    <h4>First Launch: ${domain}</h4>
+                    <p><strong>Result URL:</strong> <span class="url-display">${url}</span></p>
+                    <p><strong>Status:</strong> ${isGitHub ? '✅ CORRECT - Using GitHub Pages' : '❌ WRONG - Should use GitHub Pages on first launch'}</p>
+                    <p><strong>Expected:</strong> Should always use GitHub Pages URL on first launch</p>
+                `;
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = `<p>❌ Error testing ${domain}: ${error.message}</p>`;
+            }
+        }
+        
+        async function testPageReload(domain) {
+            const results = document.getElementById('page-reload-results');
+            const resultDiv = document.createElement('div');
+            resultDiv.innerHTML = `<p>Testing page reload for ${domain}...</p>`;
+            results.appendChild(resultDiv);
+            
+            try {
+                const url = await determineWorkingUrl(`https://${domain}`, domain, false);
+                
+                let expectedBehavior, isCorrect;
+                if (domain === 'wyerd.net') {
+                    expectedBehavior = 'Should use GitHub Pages (domain not working)';
+                    isCorrect = url.includes('github.io');
+                } else if (domain === 'wyerdcard.net') {
+                    expectedBehavior = 'Should use custom domain (domain working)';
+                    isCorrect = url.includes('wyerdcard.net');
+                } else {
+                    expectedBehavior = 'Unknown expected behavior for this domain';
+                    isCorrect = false;
+                }
+                
+                resultDiv.className = `result ${isCorrect ? 'success' : 'error'}`;
+                resultDiv.innerHTML = `
+                    <h4>Page Reload: ${domain}</h4>
+                    <p><strong>Result URL:</strong> <span class="url-display">${url}</span></p>
+                    <p><strong>Status:</strong> ${isCorrect ? '✅ CORRECT' : '❌ WRONG'}</p>
+                    <p><strong>Expected:</strong> ${expectedBehavior}</p>
+                `;
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = `<p>❌ Error testing ${domain}: ${error.message}</p>`;
+            }
+        }
+        
+        async function testBackendStatus(domain) {
+            const results = document.getElementById('backend-results');
+            const resultDiv = document.createElement('div');
+            resultDiv.innerHTML = `<p>Checking backend status for ${domain}...</p>`;
+            results.appendChild(resultDiv);
+            
+            try {
+                const status = await checkDomainStatus(domain);
+                
+                resultDiv.className = 'result info';
+                resultDiv.innerHTML = `
+                    <h4>Backend Status: ${domain}</h4>
+                    <p><strong>Status:</strong> ${status.status}</p>
+                    <p><strong>URL:</strong> <span class="url-display">${status.url}</span></p>
+                    <p><strong>Accessible:</strong> ${status.accessible ? 'Yes' : 'No'}</p>
+                    <p><strong>Message:</strong> ${status.message}</p>
+                    <p><a href="${status.url}" target="_blank">🔗 Test Link</a></p>
+                `;
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = `<p>❌ Error checking ${domain}: ${error.message}</p>`;
+            }
+        }
+    </script>
+</body>
+</html>

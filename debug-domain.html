@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Domain Status Test</title>
+</head>
+<body>
+    <h1>Domain Status Debug</h1>
+    <div id="results"></div>
+    
+    <script>
+        async function testDomainStatus() {
+            const results = document.getElementById('results');
+            results.innerHTML = '<p>Testing domain status...</p>';
+            
+            try {
+                console.log('🔍 Testing wyerd.net domain status...');
+                
+                const response = await fetch('/api/opensrs/check-domain-status', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ domain: 'wyerd.net', timestamp: Date.now() })
+                });
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    
+                    console.log('✅ Backend response:', result);
+                    
+                    const backendUrl = result.url || result.recommended_url || result.workingUrl;
+                    
+                    results.innerHTML = `
+                        <h2>wyerd.net Domain Status</h2>
+                        <p><strong>Status:</strong> ${result.status}</p>
+                        <p><strong>URL:</strong> ${result.url}</p>
+                        <p><strong>Recommended URL:</strong> ${result.recommended_url}</p>
+                        <p><strong>Working URL:</strong> ${result.workingUrl}</p>
+                        <p><strong>Final URL:</strong> ${backendUrl}</p>
+                        <p><strong>Message:</strong> ${result.message}</p>
+                        <p><strong>Accessible:</strong> ${result.accessible}</p>
+                        <hr>
+                        <p style="color: ${backendUrl.includes('github.io') ? 'green' : 'red'}">
+                            ${backendUrl.includes('github.io') ? '✅ CORRECT: Using GitHub Pages' : '❌ WRONG: Should use GitHub Pages'}
+                        </p>
+                    `;
+                } else {
+                    results.innerHTML = `<p>❌ API Error: ${response.status}</p>`;
+                }
+            } catch (error) {
+                console.error('❌ Error:', error);
+                results.innerHTML = `<p>❌ Error: ${error.message}</p>`;
+            }
+        }
+        
+        // Test on page load
+        testDomainStatus();
+    </script>
+</body>
+</html>
